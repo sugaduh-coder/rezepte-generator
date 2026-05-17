@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>🍽️ Familien Rezept-Bauplan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #FDF6EC; font-family: 'Nunito', sans-serif; }
+    #root { height: 100%; }
+
+    .chip {
+      display: inline-flex; align-items: center;
+      cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+      border: 2px solid #E8D5C0; border-radius: 50px;
+      padding: 8px 13px; font-family: 'Nunito', sans-serif;
+      font-weight: 700; font-size: 13px;
+      background: #FFF8F0; color: #5C4030;
+      transition: all .18s;
+    }
+    .chipOn { box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+
+    .pBtn {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 2px solid #E8D5C0; background: #FFF8F0;
+      font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px;
+      color: #8B6E4E; cursor: pointer; transition: all .18s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pOn {
+      background: #C4622D !important; border-color: #C4622D !important;
+      color: #fff !important; transform: scale(1.1);
+      box-shadow: 0 3px 10px rgba(196,98,45,.4);
+    }
+
+    .genBtn {
+      display: block; width: 100%;
+      background: linear-gradient(135deg, #C4622D, #E8804A);
+      color: #fff; border: none; border-radius: 14px;
+      padding: 16px; font-family: 'Nunito', sans-serif;
+      font-weight: 800; font-size: 17px; cursor: pointer;
+      transition: all .2s; box-shadow: 0 5px 16px rgba(196,98,45,.4);
+      margin-top: 18px; -webkit-tap-highlight-color: transparent;
+    }
+    .genBtn:disabled { opacity: .45; cursor: not-allowed; }
+    .genBtn:not(:disabled):active { transform: scale(.97); }
+
+    .actBtn {
+      flex: 1; padding: 10px 6px;
+      border-radius: 12px; border: 2px solid #E8D5C0;
+      background: #FFF8F0; font-family: 'Nunito', sans-serif;
+      font-weight: 700; font-size: 13px; color: #5C4030;
+      cursor: pointer; transition: all .18s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .actBtn:active { transform: scale(.95); }
+    .actBtnFav { background: #FFF0F0 !important; border-color: #FF9090 !important; color: #C0004E !important; }
+
+    .tabBtn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 10px 4px 8px; border: none; background: transparent;
+      font-family: 'Nunito', sans-serif; color: #B09080; cursor: pointer;
+      position: relative; transition: color .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tabOn { color: #C4622D !important; }
+
+    .dayPickBtn {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 12px 6px; border-radius: 14px;
+      border: 2px solid #E8D5C0; background: #FFF8F0;
+      font-family: 'Nunito', sans-serif; cursor: pointer;
+      transition: all .18s; position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dayPickBtn:active { background: #C4622D; border-color: #C4622D; color: #fff; transform: scale(.94); }
+
+    .keyInput {
+      width: 100%; padding: 13px 14px;
+      border: 2px solid #E8D5C0; border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 600;
+      background: #FFF8F0; color: #3D2314;
+      outline: none; transition: border-color .2s;
+    }
+    .keyInput:focus { border-color: #C4622D; }
+
+    .saveKeyBtn {
+      width: 100%; padding: 13px;
+      background: #3D2314; color: #fff;
+      border: none; border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px;
+      cursor: pointer; margin-top: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .saveKeyBtn:active { opacity: .8; }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid #F0E6D8; border-top-color: #C4622D;
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fadeIn { animation: fi .4s ease; }
+    @keyframes fi { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    /* ── Konstanten ── */
+    const FILTERS = [
+      { id: "vegetarisch",  label: "🥦 Vegetarisch", color: "#7A9E7E" },
+      { id: "vegan",        label: "🌱 Vegan",        color: "#4CAF7D" },
+      { id: "proteinreich", label: "💪 Proteinreich", color: "#C4622D" },
+      { id: "abnehmen",     label: "⚖️ Abnehmen",    color: "#D4845A", group: "gewicht" },
+      { id: "zunehmen",     label: "🏋️ Zunehmen",   color: "#8B6E4E", group: "gewicht" },
+      { id: "kindgerecht",  label: "🧒 Kindgerecht",  color: "#E8A838" },
+      { id: "schnell",      label: "⚡ < 30 Min",     color: "#5B8FB9" },
+      { id: "guenstig",     label: "💰 Günstig",      color: "#9B7EBD" },
+    ];
+    const DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+    const DAY_FULL = { Mo:"Montag", Di:"Dienstag", Mi:"Mittwoch", Do:"Donnerstag", Fr:"Freitag", Sa:"Samstag", So:"Sonntag" };
+
+    /* ── localStorage helper (sync) ── */
+    const store = {
+      get(key)      { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; } },
+      set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
+    };
+
+    /* ══════════════════════════════════════════════════
+       API-KEY SCREEN
+    ══════════════════════════════════════════════════ */
+    function ApiKeyScreen({ onSave }) {
+      const [val, setVal] = useState("");
+      const save = () => { if (val.trim().startsWith("sk-ant-")) { onSave(val.trim()); } };
+      return (
+        <div style={S.keyScreen}>
+          <div style={S.keyCard}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>🔑</div>
+            <h2 style={S.keyTitle}>API-Key eingeben</h2>
+            <p style={S.keyDesc}>
+              Damit Rezepte generiert werden können, brauchst du einen kostenlosen Anthropic API-Key.
+            </p>
+            <div style={S.keySteps}>
+              <p>1. Gehe zu <strong>console.anthropic.com</strong></p>
+              <p>2. Erstelle einen Account (kostenlos)</p>
+              <p>3. Unter "API Keys" → neuen Key erstellen</p>
+              <p>4. Key hier einfügen und speichern</p>
+            </div>
+            <input
+              className="keyInput"
+              type="password"
+              placeholder="sk-ant-api03-..."
+              value={val}
+              onChange={e => setVal(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && save()}
+            />
+            {val && !val.trim().startsWith("sk-ant-") && (
+              <p style={{ color:"#C4622D", fontSize:12, fontWeight:700, marginTop:6 }}>
+                ⚠️ Anthropic Keys beginnen mit "sk-ant-"
+              </p>
+            )}
+            <button className="saveKeyBtn" onClick={save}
+              disabled={!val.trim().startsWith("sk-ant-")}>
+              ✅ Speichern & starten
+            </button>
+            <p style={S.keyHint}>
+              🔒 Dein Key wird nur lokal in diesem Browser gespeichert und nirgendwo hochgeladen.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════════════════
+       HAUPT-APP
+    ══════════════════════════════════════════════════ */
+    function App() {
+      const [apiKey,    setApiKey]    = useState(() => store.get("apikey") || "");
+      const [tab,       setTab]       = useState("rezept");
+      const [selected,  setSelected]  = useState([]);
+      const [persons,   setPersons]   = useState(4);
+      const [recipe,    setRecipe]    = useState(null);
+      const [loading,   setLoading]   = useState(false);
+      const [error,     setError]     = useState(null);
+      const [favorites, setFavorites] = useState(() => store.get("fav") || []);
+      const [weekPlan,  setWeekPlan]  = useState(() => store.get("wp")  || {});
+      const [checked,   setChecked]   = useState(() => store.get("ch")  || {});
+      const [dayModal,  setDayModal]  = useState(false);
+      const [toast,     setToast]     = useState(null);
+
+      const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
+
+      const saveKey = (key) => { store.set("apikey", key); setApiKey(key); };
+      const resetKey = () => { store.set("apikey", ""); setApiKey(""); };
+
+      const toggleFilter = (id) => {
+        const filter = FILTERS.find(f => f.id === id);
+        setSelected(p => {
+          if (p.includes(id)) return p.filter(f => f !== id);
+          if (filter?.group) {
+            const groupIds = FILTERS.filter(f => f.group === filter.group).map(f => f.id);
+            return [...p.filter(f => !groupIds.includes(f)), id];
+          }
+          return [...p, id];
+        });
+      };
+
+      const generateRecipe = async () => {
+        if (!selected.length) return;
+        setLoading(true); setError(null); setRecipe(null);
+        const labels = selected.map(id => FILTERS.find(f => f.id === id)?.label.replace(/^.{2}/,"").trim()).join(", ");
+        const prompt = `Du bist ein Familienküchenchef. Erstelle ein Rezept für ${persons} Personen mit: ${labels}.
+Antworte NUR mit JSON (kein Markdown, keine Backticks):
+{"name":"...","emoji":"🍽️","beschreibung":"1-2 Sätze","zubereitungszeit":"25 Min","schwierigkeit":"Einfach","kalorien":"450 kcal/Portion","zutaten":[{"menge":"400g","zutat":"..."}],"zubereitung":["Schritt 1","Schritt 2"],"tipps":"Tipp","kosten":"ca. 2,50 Euro/Person"}`;
+        try {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true",
+            },
+            body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, messages:[{role:"user",content:prompt}] }),
+          });
+          const data   = await res.json();
+          if (data.error) throw new Error(data.error.message);
+          const txt    = data.content?.find(b => b.type==="text")?.text || "";
+          const parsed = JSON.parse(txt.replace(/```json|```/g,"").trim());
+          parsed._labels  = labels;
+          parsed._persons = persons;
+          setRecipe(parsed);
+        } catch(e) {
+          setError("Rezept konnte nicht generiert werden: " + (e.message || "Bitte nochmal versuchen."));
+        } finally { setLoading(false); }
+      };
+
+      const saveFav = (r) => {
+        if (favorites.some(f => f.name === r.name)) { showToast("Bereits gespeichert ❤️"); return; }
+        const next = [{ ...r, _savedAt: new Date().toISOString() }, ...favorites];
+        setFavorites(next); store.set("fav", next);
+        showToast("Zu Favoriten gespeichert ❤️");
+      };
+      const removeFav = (name) => {
+        const next = favorites.filter(f => f.name !== name);
+        setFavorites(next); store.set("fav", next);
+      };
+
+      const addToDay = (day) => {
+        if (!recipe) return;
+        const next = { ...weekPlan, [day]: recipe };
+        setWeekPlan(next); store.set("wp", next);
+        setDayModal(false);
+        showToast(`${recipe.name} → ${DAY_FULL[day]} ✓`);
+      };
+      const removeDay = (day) => {
+        const next = { ...weekPlan }; delete next[day];
+        setWeekPlan(next); store.set("wp", next);
+      };
+
+      const shopItems = DAYS.flatMap(day => {
+        const r = weekPlan[day];
+        if (!r?.zutaten) return [];
+        return r.zutaten.map((z, i) => ({ key:`${day}-${i}`, day, menge:z.menge, zutat:z.zutat, recipe:r.name }));
+      });
+      const toggleCheck = (key) => {
+        const next = { ...checked, [key]: !checked[key] };
+        setChecked(next); store.set("ch", next);
+      };
+      const resetChecks = () => { setChecked({}); store.set("ch", {}); };
+
+      const uncheckedCount = shopItems.filter(i => !checked[i.key]).length;
+      const isFav = recipe && favorites.some(f => f.name === recipe.name);
+
+      /* Kein API-Key → Key-Eingabe zeigen */
+      if (!apiKey) return <ApiKeyScreen onSave={saveKey} />;
+
+      /* Chip-Render-Logik mit Gruppe */
+      const renderChips = () => {
+        const result = [];
+        let i = 0;
+        while (i < FILTERS.length) {
+          const f = FILTERS[i];
+          if (f.group) {
+            const groupFilters = [];
+            while (i < FILTERS.length && FILTERS[i].group === f.group) { groupFilters.push(FILTERS[i]); i++; }
+            result.push(
+              <div key={`group-${f.group}`} style={S.groupRow}>
+                <span style={S.groupLabel}>nur eins:</span>
+                {groupFilters.map(gf => (
+                  <button key={gf.id}
+                    className={`chip${selected.includes(gf.id) ? " chipOn" : ""}`}
+                    style={selected.includes(gf.id) ? { background:gf.color, borderColor:gf.color, color:"#fff" } : { borderColor:gf.color+"55" }}
+                    onClick={() => toggleFilter(gf.id)}>{gf.label}</button>
+                ))}
+              </div>
+            );
+          } else {
+            result.push(
+              <button key={f.id}
+                className={`chip${selected.includes(f.id) ? " chipOn" : ""}`}
+                style={selected.includes(f.id) ? { background:f.color, borderColor:f.color, color:"#fff" } : { borderColor:f.color+"55" }}
+                onClick={() => toggleFilter(f.id)}>{f.label}</button>
+            );
+            i++;
+          }
+        }
+        return result;
+      };
+
+      return (
+        <div style={S.root}>
+          {toast && <div style={S.toast}>{toast}</div>}
+
+          {dayModal && (
+            <div style={S.overlay} onClick={() => setDayModal(false)}>
+              <div style={S.sheet} onClick={e => e.stopPropagation()}>
+                <div style={S.sheetHandle} />
+                <h3 style={S.sheetTitle}>Für welchen Tag?</h3>
+                <div style={S.dayGrid}>
+                  {DAYS.map(d => (
+                    <button key={d} className="dayPickBtn" onClick={() => addToDay(d)}>
+                      <span style={S.dpShort}>{d}</span>
+                      <span style={S.dpFull}>{DAY_FULL[d]}</span>
+                      {weekPlan[d] && <span style={S.dpDot} />}
+                    </button>
+                  ))}
+                </div>
+                <button style={S.cancelBtn} onClick={() => setDayModal(false)}>Abbrechen</button>
+              </div>
+            </div>
+          )}
+
+          <div style={S.body}>
+
+            {/* ─── REZEPT ─── */}
+            {tab === "rezept" && (
+              <React.Fragment>
+                <div style={S.pageHeader}>
+                  <h1 style={S.pageTitle}>🍽️ Rezept-Bauplan</h1>
+                  <p style={S.pageSub}>Filter wählen & Rezept generieren</p>
+                </div>
+                <div style={S.section}>
+                  <p style={S.label}>🎯 Was braucht ihr?</p>
+                  <div style={S.chipRow}>{renderChips()}</div>
+
+                  <div style={S.personsRow}>
+                    <span style={S.personsLabel}>👨‍👩‍👧‍👦 Personen:</span>
+                    <div style={{ display:"flex", gap:8 }}>
+                      {[1,2,3,4,5,6].map(n => (
+                        <button key={n} className={`pBtn${persons===n?" pOn":""}`} onClick={() => setPersons(n)}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button className="genBtn" onClick={generateRecipe} disabled={loading || !selected.length}>
+                    {loading ? "⏳ Wird erstellt…" : "✨ Rezept generieren"}
+                  </button>
+                  {!selected.length && <p style={S.hint}>Wähle mindestens einen Filter</p>}
+
+                  <button onClick={resetKey} style={S.keyResetBtn}>🔑 API-Key ändern</button>
+                </div>
+
+                {loading && (
+                  <div style={S.loadCard}>
+                    <div className="spinner" />
+                    <p style={S.loadText}>Dein Rezept wird gekocht… 🍳</p>
+                  </div>
+                )}
+                {error && <div style={S.errCard}>{error}</div>}
+
+                {recipe && !loading && (
+                  <div className="fadeIn" style={S.recipeCard}>
+                    <div style={S.recipeHead}>
+                      <span style={S.recipeEmoji}>{recipe.emoji}</span>
+                      <div>
+                        <h2 style={S.recipeName}>{recipe.name}</h2>
+                        <p style={S.recipeDesc}>{recipe.beschreibung}</p>
+                      </div>
+                    </div>
+                    <div style={S.actionRow}>
+                      <button className={`actBtn${isFav?" actBtnFav":""}`} onClick={() => saveFav(recipe)}>
+                        {isFav ? "❤️ Favorit" : "🤍 Merken"}
+                      </button>
+                      <button className="actBtn" onClick={() => setDayModal(true)}>📅 Zur Woche</button>
+                      <button className="actBtn" onClick={generateRecipe}>🔄 Neu</button>
+                    </div>
+                    <div style={S.statsRow}>
+                      {[["⏱️",recipe.zubereitungszeit,"Zeit"],["📊",recipe.schwierigkeit,"Level"],["🔥",recipe.kalorien,"Kcal"],["💰",recipe.kosten,"Kosten"]].map(([ic,v,lb]) => (
+                        <div key={lb} style={S.statBox}>
+                          <span style={{ fontSize:16 }}>{ic}</span>
+                          <span style={S.statVal}>{v}</span>
+                          <span style={S.statLab}>{lb}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <h3 style={S.sHead}>🛒 Zutaten</h3>
+                    {recipe.zutaten?.map((z,i) => (
+                      <div key={i} style={S.ingRow}>
+                        <span style={S.ingMenge}>{z.menge}</span>
+                        <span style={S.ingZutat}>{z.zutat}</span>
+                      </div>
+                    ))}
+                    <h3 style={S.sHead}>👩‍🍳 Zubereitung</h3>
+                    {recipe.zubereitung?.map((step,i) => (
+                      <div key={i} style={S.stepRow}>
+                        <div style={S.stepNum}>{i+1}</div>
+                        <p style={S.stepText}>{step}</p>
+                      </div>
+                    ))}
+                    {recipe.tipps && (
+                      <div style={S.tipp}>
+                        <span>💡</span>
+                        <p><strong>Tipp:</strong> {recipe.tipps}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ height:16 }} />
+              </React.Fragment>
+            )}
+
+            {/* ─── WOCHENPLAN ─── */}
+            {tab === "wochenplan" && (
+              <React.Fragment>
+                <div style={S.pageHeader}>
+                  <h1 style={S.pageTitle}>📅 Wochenplan</h1>
+                  <p style={S.pageSub}>{DAYS.filter(d=>weekPlan[d]).length} von 7 Tagen geplant</p>
+                </div>
+                <div style={S.section}>
+                  {DAYS.map(day => (
+                    <div key={day} style={S.dayCard}>
+                      <div style={S.dayTop}>
+                        <span style={S.dayName}>{DAY_FULL[day]}</span>
+                        {weekPlan[day] && <button style={S.xBtn} onClick={() => removeDay(day)}>✕</button>}
+                      </div>
+                      {weekPlan[day] ? (
+                        <div style={S.dayRecipe} onClick={() => { setRecipe(weekPlan[day]); setTab("rezept"); }}>
+                          <span style={{ fontSize:30 }}>{weekPlan[day].emoji}</span>
+                          <div>
+                            <div style={S.dayRecipeName}>{weekPlan[day].name}</div>
+                            <div style={S.dayRecipeMeta}>⏱️ {weekPlan[day].zubereitungszeit} · 👥 {weekPlan[day]._persons} Pers.</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={S.dayEmpty}>Kein Rezept geplant</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </React.Fragment>
+            )}
+
+            {/* ─── EINKAUFSLISTE ─── */}
+            {tab === "einkaufsliste" && (
+              <React.Fragment>
+                <div style={S.pageHeader}>
+                  <h1 style={S.pageTitle}>🛒 Einkaufsliste</h1>
+                  <p style={S.pageSub}>
+                    {shopItems.length ? `${uncheckedCount} von ${shopItems.length} noch kaufen` : "Wochenplan befüllen → Liste erscheint hier"}
+                  </p>
+                </div>
+                <div style={S.section}>
+                  {!shopItems.length ? (
+                    <div style={S.empty}>
+                      <div style={{ fontSize:52 }}>🛒</div>
+                      <p style={S.emptyText}>Noch keine Zutaten</p>
+                      <p style={S.emptyHint}>Füge Rezepte zum Wochenplan hinzu.</p>
+                    </div>
+                  ) : (
+                    <React.Fragment>
+                      <div style={S.listMeta}>
+                        <span style={S.listDone}>✅ {shopItems.length - uncheckedCount} erledigt</span>
+                        <button style={S.listReset} onClick={resetChecks}>Zurücksetzen</button>
+                      </div>
+                      {Object.values(shopItems.reduce((acc, item) => {
+                        const k = item.key.split("-")[0];
+                        if (!acc[k]) acc[k] = { day:item.day, recipe:item.recipe, items:[] };
+                        acc[k].items.push(item);
+                        return acc;
+                      }, {})).map(group => (
+                        <div key={group.day} style={S.groupCard}>
+                          <div style={S.groupHead}>
+                            <span style={S.groupTitle}>{group.recipe}</span>
+                            <span style={S.groupDay}>{group.day}</span>
+                          </div>
+                          {group.items.map(item => (
+                            <div key={item.key} style={S.checkRow} onClick={() => toggleCheck(item.key)}>
+                              <div style={{ ...S.checkbox, ...(checked[item.key] ? S.checkboxOn : {}) }}>
+                                {checked[item.key] && <span style={{ color:"#fff", fontSize:12 }}>✓</span>}
+                              </div>
+                              <span style={S.checkMenge}>{item.menge}</span>
+                              <span style={{ ...S.checkZutat, ...(checked[item.key] ? S.strikeThru : {}) }}>{item.zutat}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </React.Fragment>
+                  )}
+                </div>
+              </React.Fragment>
+            )}
+
+            {/* ─── FAVORITEN ─── */}
+            {tab === "favoriten" && (
+              <React.Fragment>
+                <div style={S.pageHeader}>
+                  <h1 style={S.pageTitle}>❤️ Favoriten</h1>
+                  <p style={S.pageSub}>{favorites.length ? `${favorites.length} gespeicherte Rezepte` : "Noch nichts gespeichert"}</p>
+                </div>
+                <div style={S.section}>
+                  {!favorites.length ? (
+                    <div style={S.empty}>
+                      <div style={{ fontSize:52 }}>🤍</div>
+                      <p style={S.emptyText}>Noch keine Favoriten</p>
+                      <p style={S.emptyHint}>Tippe bei einem Rezept auf "Merken".</p>
+                    </div>
+                  ) : favorites.map(r => (
+                    <div key={r.name} style={S.favCard}>
+                      <div style={S.favLeft} onClick={() => { setRecipe(r); setTab("rezept"); }}>
+                        <span style={{ fontSize:38 }}>{r.emoji}</span>
+                        <div>
+                          <div style={S.favName}>{r.name}</div>
+                          <div style={S.favMeta}>⏱️ {r.zubereitungszeit} · 💰 {r.kosten}</div>
+                          <div style={S.favFilters}>{r._labels}</div>
+                        </div>
+                      </div>
+                      <button style={S.xBtn} onClick={() => removeFav(r.name)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </React.Fragment>
+            )}
+
+          </div>
+
+          {/* Bottom Nav */}
+          <nav style={S.tabBar}>
+            {[
+              { id:"rezept",        icon:"🍽️", label:"Rezept" },
+              { id:"wochenplan",    icon:"📅", label:"Woche" },
+              { id:"einkaufsliste", icon:"🛒", label:"Einkauf",  badge: uncheckedCount || null },
+              { id:"favoriten",     icon:"❤️", label:"Favoriten", badge: favorites.length || null },
+            ].map(t => (
+              <button key={t.id} className={`tabBtn${tab===t.id?" tabOn":""}`} onClick={() => setTab(t.id)}>
+                <span style={{ fontSize:22, lineHeight:1 }}>{t.icon}</span>
+                <span style={{ fontSize:11, fontWeight:700 }}>{t.label}</span>
+                {t.badge ? <span style={S.badge}>{t.badge}</span> : null}
+              </button>
+            ))}
+          </nav>
+        </div>
+      );
+    }
+
+    /* ── Inline Styles ── */
+    const S = {
+      root: { minHeight:"100vh", maxWidth:480, margin:"0 auto", background:"#FDF6EC", fontFamily:"'Nunito',sans-serif", display:"flex", flexDirection:"column", position:"relative" },
+      body: { flex:1, overflowY:"auto", paddingBottom:84 },
+      pageHeader: { background:"linear-gradient(140deg,#3D2314 0%,#7A3518 55%,#C4622D 100%)", padding:"26px 20px 30px", textAlign:"center" },
+      pageTitle:  { fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:"#fff", marginBottom:5 },
+      pageSub:    { color:"#FFD9B8", fontSize:13, fontWeight:600 },
+      section:    { padding:"16px 14px 8px" },
+      label:      { fontFamily:"'Playfair Display',serif", fontSize:17, color:"#3D2314", marginBottom:10 },
+      chipRow:    { display:"flex", flexWrap:"wrap", gap:8 },
+      personsRow: { display:"flex", alignItems:"center", gap:12, marginTop:18, flexWrap:"wrap" },
+      personsLabel:{ fontWeight:700, color:"#5C4030", fontSize:14 },
+      hint:       { color:"#B09080", fontSize:12, textAlign:"center", marginTop:8, fontWeight:600 },
+      keyResetBtn:{ background:"none", border:"none", color:"#C0A080", fontSize:12, fontWeight:700, cursor:"pointer", marginTop:14, display:"block", textAlign:"center", width:"100%", padding:"4px" },
+      loadCard:   { margin:"0 14px 14px", background:"#fff", borderRadius:18, padding:30, textAlign:"center", boxShadow:"0 4px 18px rgba(100,60,20,.08)", display:"flex", flexDirection:"column", alignItems:"center", gap:14 },
+      loadText:   { color:"#8B6E4E", fontWeight:700, fontSize:15 },
+      errCard:    { margin:"0 14px 14px", background:"#FFF0ED", border:"1px solid #FFBFB0", borderRadius:14, padding:14, color:"#C4622D", fontWeight:700, fontSize:13, textAlign:"center" },
+      recipeCard: { margin:"0 14px 0", background:"#fff", borderRadius:20, padding:"18px 16px", boxShadow:"0 4px 18px rgba(100,60,20,.1)" },
+      recipeHead: { display:"flex", gap:12, alignItems:"flex-start", paddingBottom:14, marginBottom:14, borderBottom:"2px solid #F5EAD8" },
+      recipeEmoji:{ fontSize:48, lineHeight:1, minWidth:54 },
+      recipeName: { fontFamily:"'Playfair Display',serif", fontSize:20, color:"#3D2314", marginBottom:5 },
+      recipeDesc: { color:"#7A6050", fontSize:13, lineHeight:1.5, fontWeight:600 },
+      actionRow:  { display:"flex", gap:8, marginBottom:14 },
+      statsRow:   { display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:18 },
+      statBox:    { background:"#FDF6EC", borderRadius:12, padding:"10px 4px", textAlign:"center", border:"1px solid #F0E0C8", display:"flex", flexDirection:"column", alignItems:"center", gap:2 },
+      statVal:    { fontWeight:700, fontSize:10, color:"#3D2314" },
+      statLab:    { fontSize:9, color:"#A08060", fontWeight:700, textTransform:"uppercase" },
+      sHead:      { fontFamily:"'Playfair Display',serif", fontSize:16, color:"#3D2314", margin:"16px 0 10px", paddingBottom:8, borderBottom:"2px solid #F0E0C8" },
+      ingRow:     { display:"flex", gap:10, padding:"7px 0", borderBottom:"1px dashed #F0E0C8" },
+      ingMenge:   { minWidth:68, fontWeight:700, color:"#C4622D", fontSize:12 },
+      ingZutat:   { color:"#5C4030", fontSize:13, fontWeight:600 },
+      stepRow:    { display:"flex", gap:10, padding:"10px 0", borderBottom:"1px solid #F5EAD8", alignItems:"flex-start" },
+      stepNum:    { minWidth:26, height:26, background:"#C4622D", color:"#fff", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Playfair Display',serif", fontSize:12, fontWeight:700, flexShrink:0 },
+      stepText:   { color:"#5C4030", fontSize:13, lineHeight:1.6, fontWeight:600 },
+      tipp:       { background:"#FFF8EC", border:"1px solid #F0D5A0", borderRadius:12, padding:"12px 14px", display:"flex", gap:8, alignItems:"flex-start", marginTop:14, fontSize:13, color:"#5C4030", lineHeight:1.5, fontWeight:600 },
+      tabBar:     { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, display:"flex", background:"#fff", borderTop:"1px solid #F0E0C8", paddingBottom:"env(safe-area-inset-bottom,0px)", zIndex:100, boxShadow:"0 -4px 18px rgba(100,60,20,.1)" },
+      badge:      { position:"absolute", top:6, right:8, background:"#C4622D", color:"#fff", borderRadius:10, fontSize:9, fontWeight:800, padding:"1px 5px", minWidth:16, textAlign:"center" },
+      toast:      { position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", background:"#3D2314", color:"#fff", borderRadius:50, padding:"10px 20px", fontWeight:700, fontSize:14, zIndex:999, boxShadow:"0 4px 16px rgba(0,0,0,.3)", whiteSpace:"nowrap", pointerEvents:"none" },
+      overlay:    { position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:200, display:"flex", alignItems:"flex-end" },
+      sheet:      { background:"#fff", borderRadius:"22px 22px 0 0", padding:"12px 18px 32px", width:"100%", maxWidth:480, margin:"0 auto" },
+      sheetHandle:{ width:36, height:4, background:"#E8D5C0", borderRadius:2, margin:"0 auto 16px" },
+      sheetTitle: { fontFamily:"'Playfair Display',serif", fontSize:19, color:"#3D2314", textAlign:"center", marginBottom:16 },
+      dayGrid:    { display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:14 },
+      dpShort:    { fontWeight:800, fontSize:15, color:"#3D2314" },
+      dpFull:     { fontSize:9, color:"#8B6E4E", fontWeight:600 },
+      dpDot:      { position:"absolute", top:6, right:6, width:7, height:7, borderRadius:"50%", background:"#C4622D" },
+      cancelBtn:  { display:"block", width:"100%", padding:14, borderRadius:14, border:"2px solid #E8D5C0", background:"transparent", fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:"#8B6E4E", cursor:"pointer" },
+      groupRow:   { display:"flex", alignItems:"center", gap:6, width:"100%", background:"#FFF5EE", border:"1px dashed #E8C0A0", borderRadius:50, padding:"3px 10px 3px 8px" },
+      groupLabel: { fontSize:9, fontWeight:800, color:"#C4622D", textTransform:"uppercase", letterSpacing:.5, whiteSpace:"nowrap" },
+      dayCard:    { background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, boxShadow:"0 2px 10px rgba(100,60,20,.07)" },
+      dayTop:     { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 },
+      dayName:    { fontFamily:"'Playfair Display',serif", fontSize:15, color:"#3D2314", fontWeight:700 },
+      dayRecipe:  { display:"flex", gap:10, alignItems:"center", cursor:"pointer" },
+      dayRecipeName:{ fontWeight:700, fontSize:14, color:"#3D2314" },
+      dayRecipeMeta:{ fontSize:11, color:"#A08060", fontWeight:600, marginTop:2 },
+      dayEmpty:   { color:"#C0A080", fontSize:12, fontWeight:600, fontStyle:"italic" },
+      xBtn:       { background:"none", border:"none", color:"#C0A080", fontSize:16, cursor:"pointer", padding:"4px 6px" },
+      listMeta:   { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 },
+      listDone:   { fontWeight:700, color:"#7A9E7E", fontSize:13 },
+      listReset:  { background:"none", border:"1px solid #E8D5C0", borderRadius:8, padding:"5px 12px", fontSize:12, fontWeight:700, color:"#8B6E4E", cursor:"pointer", fontFamily:"'Nunito',sans-serif" },
+      groupCard:  { background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:10, boxShadow:"0 2px 10px rgba(100,60,20,.07)" },
+      groupHead:  { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, paddingBottom:8, borderBottom:"2px solid #F5EAD8" },
+      groupTitle: { fontFamily:"'Playfair Display',serif", fontSize:14, color:"#3D2314", fontWeight:700 },
+      groupDay:   { background:"#FDF6EC", border:"1px solid #E8D5C0", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700, color:"#8B6E4E" },
+      checkRow:   { display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:"1px dashed #F0E0C8", cursor:"pointer" },
+      checkbox:   { width:22, height:22, borderRadius:6, border:"2px solid #D0B090", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" },
+      checkboxOn: { background:"#7A9E7E", borderColor:"#7A9E7E" },
+      checkMenge: { minWidth:60, fontWeight:700, color:"#C4622D", fontSize:12 },
+      checkZutat: { color:"#5C4030", fontSize:13, fontWeight:600 },
+      strikeThru: { textDecoration:"line-through", color:"#C0A080" },
+      favCard:    { background:"#fff", borderRadius:14, padding:"12px 14px", marginBottom:8, boxShadow:"0 2px 10px rgba(100,60,20,.07)", display:"flex", alignItems:"center" },
+      favLeft:    { display:"flex", gap:12, alignItems:"center", flex:1, cursor:"pointer" },
+      favName:    { fontFamily:"'Playfair Display',serif", fontSize:15, color:"#3D2314", fontWeight:700, marginBottom:3 },
+      favMeta:    { fontSize:11, color:"#A08060", fontWeight:600, marginBottom:3 },
+      favFilters: { fontSize:11, color:"#C4622D", fontWeight:700 },
+      empty:      { textAlign:"center", padding:"48px 20px" },
+      emptyText:  { fontFamily:"'Playfair Display',serif", fontSize:17, color:"#3D2314", margin:"14px 0 6px" },
+      emptyHint:  { fontSize:13, fontWeight:600, color:"#A08060", lineHeight:1.5 },
+      keyScreen:  { minHeight:"100vh", background:"#FDF6EC", display:"flex", alignItems:"center", justifyContent:"center", padding:20 },
+      keyCard:    { background:"#fff", borderRadius:24, padding:"32px 24px", maxWidth:420, width:"100%", boxShadow:"0 8px 32px rgba(100,60,20,.12)", textAlign:"center" },
+      keyTitle:   { fontFamily:"'Playfair Display',serif", fontSize:24, color:"#3D2314", marginBottom:10 },
+      keyDesc:    { color:"#7A6050", fontSize:14, lineHeight:1.6, fontWeight:600, marginBottom:18 },
+      keySteps:   { background:"#FDF6EC", borderRadius:14, padding:"14px 16px", marginBottom:18, textAlign:"left", display:"flex", flexDirection:"column", gap:8, fontSize:13, color:"#5C4030", fontWeight:600, lineHeight:1.5 },
+      keyHint:    { fontSize:11, color:"#A08060", fontWeight:600, marginTop:12, lineHeight:1.5 },
+    };
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
